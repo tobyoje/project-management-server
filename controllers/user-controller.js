@@ -12,7 +12,7 @@ const index = (req, res) => {
 
 //Account Sign Up
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, position, email, password } = req.body;
 
   if (!email || !password) {
     return res
@@ -27,12 +27,43 @@ const register = async (req, res) => {
 
   const hashedPassword = bcrypt.hashSync(password);
 
-  const newUser = {
-    email,
-    password: hashedPassword,
-  };
+  function generateRandomAlphaNumeric(length) {
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters.charAt(randomIndex);
+    }
+    return result;
+  }
+
+  let genUsername = name.split(" ");
+  const randomString = generateRandomAlphaNumeric(5);
+  const modifiedUsername = genUsername[0] + randomString;
+  genUsername = modifiedUsername;
 
   try {
+    const existingEmailUser = await knex("user").where({ email }).first();
+    if (existingEmailUser) {
+      return res.status(409).send("Email already exists");
+    }
+
+    const existingUsernameUser = await knex("user")
+      .where({ username: genUsername })
+      .first();
+    if (existingUsernameUser) {
+      return res.status(409).send("Username already exists");
+    }
+
+    const newUser = {
+      name,
+      username: genUsername,
+      position,
+      email,
+      password: hashedPassword,
+    };
+
     await knex("user").insert(newUser);
     res.status(201).send("Registered successfully");
   } catch (error) {
@@ -67,7 +98,6 @@ const login = async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    // Avoid logging the token, as it may contain sensitive information
     console.log("User logged in: ", user.id);
 
     res.json({
@@ -80,32 +110,39 @@ const login = async (req, res) => {
   }
 };
 
-
-
-
-
-
-// Get all user projects and tasks
 const getUserProjects = async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    // Fetch user details based on userId
     const user = await knex("user").where("id", userId).first();
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Fetch all projects and their associated tasks for the given user ID
     const projects = await knex("projects")
       .where("user_id", userId)
-      .select("id as project_id", "project_name", "project_description", "project_priority", "project_startdate", "project_enddate", "favorite");
+      .select(
+        "id as project_id",
+        "project_name",
+        "project_description",
+        "project_priority",
+        "project_startdate",
+        "project_enddate",
+        "favorite"
+      );
 
     for (const project of projects) {
       const tasks = await knex("tasks")
         .where("project_id", project.project_id)
-        .select("id as task_id", "task_name", "task_priority", "task_category", "task_startdate", "task_enddate");
+        .select(
+          "id as task_id",
+          "task_name",
+          "task_priority",
+          "task_category",
+          "task_startdate",
+          "task_enddate"
+        );
 
       project.tasks = tasks;
     }
@@ -117,10 +154,278 @@ const getUserProjects = async (req, res) => {
   }
 };
 
+const getSingleProject = async (req, res) => {
+  const projectId = req.params.projectId;
+
+  try {
+    const projects = await knex("projects")
+      .where("id", projectId)
+      .select(
+        "id as project_id",
+        "project_name",
+        "project_description",
+        "project_priority",
+        "project_startdate",
+        "project_enddate",
+        "favorite"
+      )
+      .first();
+
+    if (!projects) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const tasks = await knex("tasks")
+      .where("project_id", projectId)
+      .select(
+        "id as task_id",
+        "task_name",
+        "task_priority",
+        "task_category",
+        "task_startdate",
+        "task_enddate"
+      );
+
+    projects.tasks = tasks;
+
+    res.status(200).json({ project: projects });
+  } catch (error) {
+    console.error("Failed to get project and tasks: ", error);
+    res.status(500).json({ error: "Failed to get project and tasks" });
+  }
+};
+
+
+
+
+
+
+
+
+
+const getSingleTask = async (req, res) => {
+  const taskId = req.params.taskId; 
+
+  try {
+    const task = await knex("tasks")
+      .where("id", taskId) // Find the task by its id
+      .select(
+        "id as task_id",
+        "task_name",
+        "task_priority",
+        "task_category",
+        "task_startdate",
+        "task_enddate"
+      )
+      .first(); // Retrieve the first matching task
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    res.status(200).json({ task }); // Send the task object as JSON response
+  } catch (error) {
+    console.error("Failed to get task: ", error);
+    res.status(500).json({ error: "Failed to get task" });
+  }
+};
+
+
+
+
+
+
+
+
+const addNewProject = async (req, res) => {
+  const {
+    project_name,
+    project_description,
+    project_priority,
+    project_startdate,
+    project_enddate,
+  } = req.body;
+
+  if (
+    !project_name ||
+    !project_description ||
+    !project_priority ||
+    !project_startdate ||
+    !project_enddate
+  ) {
+    return res
+      .status(400)
+      .send("Please provide required information in the request");
+  }
+
+  const existingUser = await knex("user").where({ id: req.user.id }).first();
+  if (!existingUser) {
+    return res.status(404).send("User not found");
+  }
+
+  const existingProject = await knex("projects")
+    .where({ user_id: req.user.id, project_name })
+    .first();
+
+  if (existingProject) {
+    return res
+      .status(409)
+      .send("A project with the same name already exists for this user");
+  }
+
+  const newProject = {
+    project_name,
+    project_description,
+    project_priority,
+    project_startdate,
+    project_enddate,
+    user_id: existingUser.id,
+  };
+
+  try {
+    await knex("projects").insert(newProject);
+
+    res
+      .status(201)
+      .json({ message: "Project created successfully", project: newProject });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error adding the project", error: error.message });
+  }
+};
+
+const addNewTask = async (req, res) => {
+  const {
+    task_name,
+    task_priority,
+    task_category,
+    task_startdate,
+    task_enddate,
+    project_id,
+  } = req.body;
+
+  if (
+    !task_name ||
+    !task_priority ||
+    !task_category ||
+    !task_startdate ||
+    !task_enddate ||
+    !project_id
+  ) {
+    return res
+      .status(400)
+      .send("Please provide required information in the request");
+  }
+
+  const existingUser = await knex("user").where({ id: req.user.id }).first();
+  if (!existingUser) {
+    return res.status(404).send("User not found");
+  }
+
+  const existingProject = await knex("projects")
+    .where({ id: project_id, user_id: req.user.id })
+    .first();
+
+  if (!existingProject) {
+    return res
+      .status(404)
+      .send("Project not found for this user with the given project_id");
+  }
+
+  const newTask = {
+    task_name,
+    task_priority,
+    task_category,
+    task_startdate,
+    task_enddate,
+    project_id: existingProject.id,
+  };
+
+  try {
+    await knex.transaction(async (trx) => {
+      await trx("tasks").insert(newTask);
+      res
+        .status(201)
+        .json({ message: "Task created successfully", task: newTask });
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error adding the task", error: error.message });
+  }
+};
+
+
+
+
+
+
+const updateTask = async (req, res) => {
+  const {
+    task_name,
+    task_priority,
+    task_category,
+    task_startdate,
+    task_enddate,
+    task_id,
+  } = req.body;
+
+  if (!task_name || !task_priority || !task_category || !task_startdate || !task_enddate || !task_id) {
+    return res.status(400).send("Please provide required information in the request");
+  }
+
+  const existingUser = await knex("user").where({ id: req.user.id }).first();
+  if (!existingUser) {
+    return res.status(404).send("User not found");
+  }
+
+  try {
+    const taskToUpdate = await knex("tasks")
+      .where({ id: task_id })
+      .first();
+
+    if (!taskToUpdate) {
+      return res.status(404).send("Task not found with the given task_id");
+    }
+
+    const existingProject = await knex("projects")
+      .where({ id: taskToUpdate.project_id, user_id: req.user.id })
+      .first();
+
+    if (!existingProject) {
+      return res.status(404).send("Project not found for this user with the associated task");
+    }
+
+    const updatedTask = {
+      task_name,
+      task_priority,
+      task_category,
+      task_startdate,
+      task_enddate,
+      project_id: existingProject.id,
+    };
+
+    await knex.transaction(async (trx) => {
+      await trx("tasks").where({ id: task_id }).update(updatedTask);
+      res.status(200).json({ message: "Task updated successfully", task: updatedTask });
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating the task", error: error.message });
+  }
+};
+
+
+
 
 module.exports = {
   index,
   register,
   login,
   getUserProjects,
+  getSingleProject,
+  getSingleTask,
+  addNewProject,
+  addNewTask,
+  updateTask
 };
