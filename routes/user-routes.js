@@ -13,14 +13,11 @@ router
   .route("/project/:projectId")
   .get(authenticate, userController.getSingleProject);
 
-
-  router
-  .route("/task/:taskId")
-  .get(authenticate, userController.getSingleTask);
+router.route("/task/:taskId").get(authenticate, userController.getSingleTask);
 
 router.route("/add-project").post(authenticate, userController.addNewProject);
+router.route("/edit-project").put(authenticate, userController.updateProject);
 router.route("/add-task").post(authenticate, userController.addNewTask);
 router.route("/edit-task/").put(authenticate, userController.updateTask);
-
 
 module.exports = router;

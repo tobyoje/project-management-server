@@ -195,20 +195,12 @@ const getSingleProject = async (req, res) => {
   }
 };
 
-
-
-
-
-
-
-
-
 const getSingleTask = async (req, res) => {
-  const taskId = req.params.taskId; 
+  const taskId = req.params.taskId;
 
   try {
     const task = await knex("tasks")
-      .where("id", taskId) // Find the task by its id
+      .where("id", taskId)
       .select(
         "id as task_id",
         "task_name",
@@ -217,25 +209,18 @@ const getSingleTask = async (req, res) => {
         "task_startdate",
         "task_enddate"
       )
-      .first(); // Retrieve the first matching task
+      .first(); 
 
     if (!task) {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    res.status(200).json({ task }); // Send the task object as JSON response
+    res.status(200).json({ task }); 
   } catch (error) {
     console.error("Failed to get task: ", error);
     res.status(500).json({ error: "Failed to get task" });
   }
 };
-
-
-
-
-
-
-
 
 const addNewProject = async (req, res) => {
   const {
@@ -292,6 +277,74 @@ const addNewProject = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error adding the project", error: error.message });
+  }
+};
+
+const updateProject = async (req, res) => {
+  const {
+    project_name,
+    project_priority,
+    project_description,
+    project_startdate,
+    project_enddate,
+    project_id,
+  } = req.body;
+
+  if (
+    !project_name ||
+    !project_description ||
+    !project_priority ||
+    !project_startdate ||
+    !project_enddate ||
+    !project_id
+  ) {
+    return res
+      .status(400)
+      .send("Please provide required information in the request");
+  }
+
+  const existingUser = await knex("user").where({ id: req.user.id }).first();
+  if (!existingUser) {
+    return res.status(404).send("User not found");
+  }
+
+  try {
+    const existingProject = await knex("projects")
+      .where({ id: project_id, user_id: req.user.id })
+      .first();
+
+    if (!existingProject) {
+      return res.status(404).send("Project not found for this user");
+    }
+
+    const updatedProject = {
+      project_name,
+      project_description,
+      project_priority,
+      project_startdate,
+      project_enddate,
+    };
+
+    await knex("projects")
+      .where({ id: project_id, user_id: req.user.id })
+      .update(updatedProject);
+
+    const tasks = await knex("tasks").where({ project_id });
+
+    res.status(200).json({
+      message: "Project updated successfully",
+      project_description,
+      project_enddate,
+      project_id,
+      project_name,
+      project_priority,
+      project_startdate,
+      tasks: tasks, 
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error updating the project", error: error.message });
   }
 };
 
@@ -356,11 +409,6 @@ const addNewTask = async (req, res) => {
   }
 };
 
-
-
-
-
-
 const updateTask = async (req, res) => {
   const {
     task_name,
@@ -371,8 +419,17 @@ const updateTask = async (req, res) => {
     task_id,
   } = req.body;
 
-  if (!task_name || !task_priority || !task_category || !task_startdate || !task_enddate || !task_id) {
-    return res.status(400).send("Please provide required information in the request");
+  if (
+    !task_name ||
+    !task_priority ||
+    !task_category ||
+    !task_startdate ||
+    !task_enddate ||
+    !task_id
+  ) {
+    return res
+      .status(400)
+      .send("Please provide required information in the request");
   }
 
   const existingUser = await knex("user").where({ id: req.user.id }).first();
@@ -381,9 +438,7 @@ const updateTask = async (req, res) => {
   }
 
   try {
-    const taskToUpdate = await knex("tasks")
-      .where({ id: task_id })
-      .first();
+    const taskToUpdate = await knex("tasks").where({ id: task_id }).first();
 
     if (!taskToUpdate) {
       return res.status(404).send("Task not found with the given task_id");
@@ -394,7 +449,9 @@ const updateTask = async (req, res) => {
       .first();
 
     if (!existingProject) {
-      return res.status(404).send("Project not found for this user with the associated task");
+      return res
+        .status(404)
+        .send("Project not found for this user with the associated task");
     }
 
     const updatedTask = {
@@ -408,7 +465,22 @@ const updateTask = async (req, res) => {
 
     await knex.transaction(async (trx) => {
       await trx("tasks").where({ id: task_id }).update(updatedTask);
-      res.status(200).json({ message: "Task updated successfully", task: updatedTask });
+
+      const tasks = await trx("tasks").where({ project_id: existingProject.id });
+
+      const response = {
+        message: "Task updated successfully",
+        task: updatedTask,
+        project_description: existingProject.project_description,
+        project_enddate: existingProject.project_enddate,
+        project_id: existingProject.id,
+        project_name: existingProject.project_name,
+        project_priority: existingProject.project_priority,
+        project_startdate: existingProject.project_startdate,
+        tasks: tasks, 
+      };
+
+      res.status(200).json(response);
     });
   } catch (error) {
     res.status(500).json({ message: "Error updating the task", error: error.message });
@@ -426,6 +498,7 @@ module.exports = {
   getSingleProject,
   getSingleTask,
   addNewProject,
+  updateProject,
   addNewTask,
-  updateTask
+  updateTask,
 };
