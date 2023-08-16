@@ -398,9 +398,22 @@ const addNewTask = async (req, res) => {
   try {
     await knex.transaction(async (trx) => {
       await trx("tasks").insert(newTask);
-      res
-        .status(201)
-        .json({ message: "Task created successfully", task: newTask });
+
+      const tasks = await trx("tasks").where({ project_id: existingProject.id });
+
+      const response = {
+        message: "Task created successfully",
+        task: newTask,
+        project_description: existingProject.project_description,
+        project_enddate: existingProject.project_enddate,
+        project_id: existingProject.id,
+        project_name: existingProject.project_name,
+        project_priority: existingProject.project_priority,
+        project_startdate: existingProject.project_startdate,
+        tasks: tasks,
+      };
+
+      res.status(201).json(response);
     });
   } catch (error) {
     res
@@ -408,6 +421,7 @@ const addNewTask = async (req, res) => {
       .json({ message: "Error adding the task", error: error.message });
   }
 };
+
 
 const updateTask = async (req, res) => {
   const {
