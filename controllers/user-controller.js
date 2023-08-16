@@ -209,13 +209,13 @@ const getSingleTask = async (req, res) => {
         "task_startdate",
         "task_enddate"
       )
-      .first(); 
+      .first();
 
     if (!task) {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    res.status(200).json({ task }); 
+    res.status(200).json({ task });
   } catch (error) {
     console.error("Failed to get task: ", error);
     res.status(500).json({ error: "Failed to get task" });
@@ -339,7 +339,7 @@ const updateProject = async (req, res) => {
       project_name,
       project_priority,
       project_startdate,
-      tasks: tasks, 
+      tasks: tasks,
     });
   } catch (error) {
     res
@@ -399,7 +399,9 @@ const addNewTask = async (req, res) => {
     await knex.transaction(async (trx) => {
       await trx("tasks").insert(newTask);
 
-      const tasks = await trx("tasks").where({ project_id: existingProject.id });
+      const tasks = await trx("tasks").where({
+        project_id: existingProject.id,
+      });
 
       const response = {
         message: "Task created successfully",
@@ -421,7 +423,6 @@ const addNewTask = async (req, res) => {
       .json({ message: "Error adding the task", error: error.message });
   }
 };
-
 
 const updateTask = async (req, res) => {
   const {
@@ -480,7 +481,9 @@ const updateTask = async (req, res) => {
     await knex.transaction(async (trx) => {
       await trx("tasks").where({ id: task_id }).update(updatedTask);
 
-      const tasks = await trx("tasks").where({ project_id: existingProject.id });
+      const tasks = await trx("tasks").where({
+        project_id: existingProject.id,
+      });
 
       const response = {
         message: "Task updated successfully",
@@ -491,18 +494,17 @@ const updateTask = async (req, res) => {
         project_name: existingProject.project_name,
         project_priority: existingProject.project_priority,
         project_startdate: existingProject.project_startdate,
-        tasks: tasks, 
+        tasks: tasks,
       };
 
       res.status(200).json(response);
     });
   } catch (error) {
-    res.status(500).json({ message: "Error updating the task", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating the task", error: error.message });
   }
 };
-
-
-
 
 module.exports = {
   index,
