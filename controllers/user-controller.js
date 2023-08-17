@@ -487,14 +487,14 @@ const updateTask = async (req, res) => {
 
       const response = {
         message: "Task updated successfully",
-        task: updatedTask,
+        task: { task_id: task_id, ...updatedTask },
         project_description: existingProject.project_description,
         project_enddate: existingProject.project_enddate,
         project_id: existingProject.id,
         project_name: existingProject.project_name,
         project_priority: existingProject.project_priority,
         project_startdate: existingProject.project_startdate,
-        tasks: tasks,
+        tasks: tasks.map((task) => ({ task_id: task.id, ...task })),
       };
 
       res.status(200).json(response);
