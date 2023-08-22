@@ -127,6 +127,7 @@ const getUserProjects = async (req, res) => {
         "project_name",
         "project_description",
         "project_priority",
+        "project_color",
         "project_startdate",
         "project_enddate",
         "favorite"
@@ -258,12 +259,27 @@ const addNewProject = async (req, res) => {
       .send("A project with the same name already exists for this user");
   }
 
+  const getRandomColor = () => {
+    const maxDarkValue = 128;
+    const letters = "0123456789ABCDEF";
+    let color = "#";
+
+    for (let i = 0; i < 3; i++) {
+      const randomValue = Math.floor(Math.random() * maxDarkValue);
+      const hexValue = randomValue.toString(16).padStart(2, "0");
+      color += hexValue;
+    }
+
+    return color;
+  };
+
   const newProject = {
     project_name,
     project_description,
     project_priority,
     project_startdate,
     project_enddate,
+    project_color: getRandomColor(),
     user_id: existingUser.id,
   };
 

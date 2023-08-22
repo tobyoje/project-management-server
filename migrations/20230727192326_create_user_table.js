@@ -21,6 +21,7 @@ exports.up = function (knex) {
       table.string("project_name").notNullable();
       table.string("project_description", 1000).notNullable();
       table.string("project_priority").notNullable();
+      table.string("project_color").notNullable();
       table.timestamp("project_startdate").notNullable();
       table.timestamp("project_enddate").notNullable();
       table.integer("favorite").notNullable().defaultTo(0);
