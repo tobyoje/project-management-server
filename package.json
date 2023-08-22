@@ -8,7 +8,8 @@
     "start": "node --watch ./server.js",
     "migrate": "knex migrate:latest",
     "rollback": "knex migrate:rollback",
-    "seed": "knex seed:run"
+    "seed": "knex seed:run",
+    "begin": "npm start migrate seed"
   },
   "author": "",
   "license": "ISC",
